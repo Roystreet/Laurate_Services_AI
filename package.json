@@ -1,0 +1,36 @@
+{
+  "name": "laurate_convertidor_markdown",
+  "version": "1.0.0",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js"
+  },
+  "keywords": [
+    "markdown",
+    "pdf",
+    "docx",
+    "ocr",
+    "openai",
+    "conversion"
+  ],
+  "author": "",
+  "license": "ISC",
+  "description": "Servicio REST que convierte documentos (PDF, Word, imágenes) a texto Markdown usando extracción local y modelos GPT de OpenAI",
+  "dependencies": {
+    "cors": "2.8",
+    "dotenv": "^16.6.1",
+    "express": "4.21",
+    "express-rate-limit": "^7.5.1",
+    "helmet": "^8.2.0",
+    "mammoth": "1.8",
+    "multer": "^2.2.0",
+    "openai": "^5.23.2",
+    "pdf-parse": "^1.1.1",
+    "swagger-jsdoc": "^6.3.0",
+    "swagger-ui-express": "^5.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}
