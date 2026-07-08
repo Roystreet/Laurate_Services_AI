@@ -29,6 +29,23 @@ const options = {
         },
       },
       schemas: {
+        ConvertUrlRequest: {
+          type: 'object',
+          required: ['url'],
+          properties: {
+            url: {
+              type: 'string',
+              format: 'uri',
+              example: 'https://ejemplo.com/archivos/informe.pdf',
+              description: 'URL pública (http/https) desde donde el servicio descargará el documento',
+            },
+            filename: {
+              type: 'string',
+              example: 'informe.pdf',
+              description: 'Nombre del archivo (opcional). Ayuda a identificar el documento y detectar su tipo; si se omite, se deriva de la URL',
+            },
+          },
+        },
         ConvertResponse: {
           type: 'object',
           properties: {

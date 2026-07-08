@@ -2,7 +2,7 @@
 
 const { Router } = require('express');
 const { apiKeyMiddleware } = require('../middleware/apiKey.middleware');
-const { upload, validateFile } = require('../middleware/upload.middleware');
+const { upload, fetchFromUrl, validateFile } = require('../middleware/upload.middleware');
 const { convert } = require('../controllers/convert.controller');
 
 const router = Router();
@@ -15,6 +15,12 @@ const router = Router();
  *     description: |
  *       Recibe un documento (PDF, Word .docx o imagen JPEG/PNG/WEBP) y devuelve todo su texto
  *       convertido a formato Markdown.
+ *
+ *       **Dos formas de enviar el documento:**
+ *       1. **Subida directa**: `multipart/form-data` con el archivo en el campo `file`.
+ *       2. **Por URL**: body JSON `{ "url": "https://...", "filename": "documento.pdf" }` — el servicio
+ *          descarga el documento desde la URL y lo analiza. `filename` es opcional (se usa para
+ *          identificar el documento y ayudar a detectar su tipo); si se omite, se deriva de la URL.
  *
  *       **Estrategia de procesamiento (híbrida):**
  *       - **PDF con texto**: extracción local + GPT para estructurar el Markdown (`local-pdf-parse+gpt`).
@@ -38,6 +44,9 @@ const router = Router();
  *                 type: string
  *                 format: binary
  *                 description: Documento a convertir (PDF, DOCX, JPEG, PNG o WEBP; máx. 10 MB por defecto)
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/ConvertUrlRequest'
  *     responses:
  *       200:
  *         description: Conversión exitosa
@@ -46,7 +55,7 @@ const router = Router();
  *             schema:
  *               $ref: '#/components/schemas/ConvertResponse'
  *       400:
- *         description: Solicitud inválida (falta el archivo o tipo no soportado)
+ *         description: Solicitud inválida (falta el documento, tipo no soportado o URL inválida)
  *         content:
  *           application/json:
  *             schema:
@@ -58,13 +67,13 @@ const router = Router();
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  *       413:
- *         description: El archivo excede el tamaño máximo permitido
+ *         description: El documento excede el tamaño máximo permitido
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  *       422:
- *         description: No se pudo extraer el contenido del documento
+ *         description: No se pudo extraer el contenido o descargar el documento desde la URL
  *         content:
  *           application/json:
  *             schema:
@@ -82,6 +91,6 @@ const router = Router();
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.post('/convert', apiKeyMiddleware, upload.single('file'), validateFile, convert);
+router.post('/convert', apiKeyMiddleware, upload.single('file'), fetchFromUrl, validateFile, convert);
 
 module.exports = router;

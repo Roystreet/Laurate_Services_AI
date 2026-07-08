@@ -70,7 +70,19 @@ Documentación interactiva: **http://localhost:3000/docs** (spec JSON en `/docs.
 
 ### `POST /api/v1/convert`
 
-Solicitud `multipart/form-data` con el documento en el campo **`file`**.
+Hay **dos formas** de enviar el documento:
+
+1. **Subida directa** — `multipart/form-data` con el documento en el campo **`file`**.
+2. **Por URL** — body **JSON** con la URL desde donde el servicio descargará el documento:
+
+```json
+{
+  "url": "https://ejemplo.com/archivos/informe.pdf",
+  "filename": "informe.pdf"
+}
+```
+
+`filename` es opcional: ayuda a identificar el documento y detectar su tipo; si se omite, se deriva de la URL. El tipo real del documento descargado se detecta por su contenido (magic bytes) y aplica la misma whitelist y límite de tamaño que la subida directa.
 
 **Respuesta 200:**
 
@@ -92,11 +104,13 @@ Solicitud `multipart/form-data` con el documento en el campo **`file`**.
 
 | Status | Código | Causa |
 |---|---|---|
-| 400 | `MISSING_FILE` | No se envió el campo `file` |
+| 400 | `MISSING_FILE` | No se envió ni el campo `file` ni una `url` en el body JSON |
 | 400 | `UNSUPPORTED_FILE_TYPE` | Tipo no soportado o contenido que no coincide con el tipo declarado |
+| 400 | `INVALID_URL` | La URL es inválida o usa un protocolo distinto de http/https |
 | 401 | `INVALID_API_KEY` | Header `x-api-key` ausente o inválido |
-| 413 | `FILE_TOO_LARGE` | El archivo excede `MAX_FILE_SIZE_MB` |
+| 413 | `FILE_TOO_LARGE` | El documento excede `MAX_FILE_SIZE_MB` |
 | 422 | `EXTRACTION_FAILED` | Documento corrupto o sin contenido extraíble |
+| 422 | `DOWNLOAD_FAILED` | No se pudo descargar el documento desde la URL (error HTTP, timeout o respuesta vacía) |
 | 429 | `RATE_LIMIT_EXCEEDED` | Rate limit excedido |
 | 502 | `UPSTREAM_AI_ERROR` | Fallo en la llamada a OpenAI |
 | 500 | `INTERNAL_ERROR` | Error interno |
@@ -118,6 +132,9 @@ curl.exe -X POST http://localhost:3000/api/v1/convert -F "file=@C:\ruta\document
 # Convertir una fotografía
 curl.exe -X POST http://localhost:3000/api/v1/convert -F "file=@C:\ruta\foto.jpg"
 
+# Convertir un documento desde una URL (sin subirlo directamente)
+curl.exe -X POST http://localhost:3000/api/v1/convert -H "Content-Type: application/json" -d "{\"url\": \"https://ejemplo.com/archivos/informe.pdf\", \"filename\": \"informe.pdf\"}"
+
 # En producción (con API key)
 curl.exe -X POST http://localhost:3000/api/v1/convert -H "x-api-key: tu-clave-secreta" -F "file=@C:\ruta\informe.pdf"
 ```
@@ -134,10 +151,11 @@ src/
 ├── controllers/              # Orquestación de la conversión
 ├── services/
 │   ├── openai.client.js      # Cliente OpenAI (singleton)
+│   ├── download.service.js   # Descarga de documentos desde URL (con límites y timeout)
 │   ├── markdown.service.js   # Texto crudo → Markdown vía GPT (con chunking)
 │   └── extractors/           # Extractores por tipo: pdf, docx, imagen
-├── middleware/               # API key, upload/validación, manejador de errores
-└── utils/errors.js           # ApiError
+├── middleware/               # API key, upload/validación (directa y por URL), errores
+└── utils/                    # ApiError y detección de tipos de archivo (magic bytes)
 ```
 
 ## Limitaciones conocidas
@@ -146,3 +164,4 @@ src/
 - **Word**: solo `.docx` (no el formato antiguo `.doc`).
 - Documentos muy largos consumen más tokens de OpenAI (costo) y se procesan por partes.
 - El rate limit es por IP y en memoria (si se despliega en múltiples instancias, considerar un store compartido como Redis).
+- **Conversión por URL**: el servicio descarga desde cualquier URL http/https accesible. Si se despliega en una red interna, considera restringir los dominios permitidos para mitigar SSRF (solicitudes hacia servicios internos).
