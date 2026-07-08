@@ -84,6 +84,17 @@ Hay **dos formas** de enviar el documento:
 
 `filename` es opcional: ayuda a identificar el documento y detectar su tipo; si se omite, se deriva de la URL. El tipo real del documento descargado se detecta por su contenido (magic bytes) y aplica la misma whitelist y límite de tamaño que la subida directa.
 
+**Enlaces de Google**: también se aceptan enlaces de Google Docs, Slides, Sheets y Google Drive — el servicio los convierte automáticamente a su URL de exportación:
+
+| Enlace | Se exporta como |
+|---|---|
+| `docs.google.com/document/d/ID/...` (Google Docs) | Word `.docx` |
+| `docs.google.com/presentation/d/ID/...` (Google Slides) | PDF |
+| `docs.google.com/spreadsheets/d/ID/...` (Google Sheets) | PDF |
+| `drive.google.com/file/d/ID/...` (archivo en Drive) | Descarga directa |
+
+> ⚠️ El documento debe estar compartido como **"Cualquier persona con el enlace"**; de lo contrario Google no permite la descarga y el servicio responde `422 DOWNLOAD_FAILED` con la indicación correspondiente.
+
 **Respuesta 200:**
 
 ```json
@@ -134,6 +145,9 @@ curl.exe -X POST http://localhost:3000/api/v1/convert -F "file=@C:\ruta\foto.jpg
 
 # Convertir un documento desde una URL (sin subirlo directamente)
 curl.exe -X POST http://localhost:3000/api/v1/convert -H "Content-Type: application/json" -d "{\"url\": \"https://ejemplo.com/archivos/informe.pdf\", \"filename\": \"informe.pdf\"}"
+
+# Convertir un Google Doc compartido con enlace
+curl.exe -X POST http://localhost:3000/api/v1/convert -H "Content-Type: application/json" -d "{\"url\": \"https://docs.google.com/document/d/TU_ID_DE_DOCUMENTO/edit?usp=sharing\"}"
 
 # En producción (con API key)
 curl.exe -X POST http://localhost:3000/api/v1/convert -H "x-api-key: tu-clave-secreta" -F "file=@C:\ruta\informe.pdf"

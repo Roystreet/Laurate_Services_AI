@@ -22,6 +22,11 @@ const router = Router();
  *          descarga el documento desde la URL y lo analiza. `filename` es opcional (se usa para
  *          identificar el documento y ayudar a detectar su tipo); si se omite, se deriva de la URL.
  *
+ *       **Enlaces de Google soportados** (el documento debe estar compartido como
+ *       *"Cualquier persona con el enlace"*): Google Docs (se exporta como .docx),
+ *       Google Slides y Google Sheets (se exportan como PDF) y archivos de Google Drive
+ *       (descarga directa). Ejemplo: `https://docs.google.com/document/d/ID/edit?usp=sharing`.
+ *
  *       **Estrategia de procesamiento (híbrida):**
  *       - **PDF con texto**: extracción local + GPT para estructurar el Markdown (`local-pdf-parse+gpt`).
  *       - **PDF escaneado** (sin texto extraíble): se envía el PDF al modelo de visión de OpenAI (`openai-pdf-vision`).
