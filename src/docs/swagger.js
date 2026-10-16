@@ -14,8 +14,8 @@ const options = {
         'convertido a formato Markdown. El análisis se realiza con IA usando modelos GPT de OpenAI con una',
         'estrategia híbrida: extracción local cuando el documento tiene texto y GPT Vision para imágenes y PDFs escaneados.',
         '',
-        '**Seguridad:** en modo producción (`NODE_ENV=production`) todas las llamadas a `/api/v1/*` requieren el',
-        'header `x-api-key`. Además se aplica rate limiting y un límite de tamaño de archivo.',
+        '**Seguridad:** `/api/v1/convert` requiere `x-api-key` cuando está configurada. La carga temporal del widget',
+        'valida el origen y tiene límites de tamaño y frecuencia; la descarga requiere el token temporal del enlace.',
       ].join('\n'),
     },
     servers: [{ url: '/', description: 'Servidor actual' }],
@@ -49,6 +49,7 @@ const options = {
         ConvertResponse: {
           type: 'object',
           properties: {
+            source: { type: 'string', enum: ['document', 'link'], description: 'Origen de la entrada' },
             filename: { type: 'string', example: 'informe.pdf' },
             mimeType: { type: 'string', example: 'application/pdf' },
             markdown: { type: 'string', example: '# Informe anual\n\nContenido del documento...' },
@@ -83,6 +84,7 @@ const options = {
       },
     },
     tags: [
+      { name: 'Documentos', description: 'Carga y descarga temporal del widget' },
       { name: 'Conversión', description: 'Conversión de documentos a Markdown' },
       { name: 'Salud', description: 'Estado del servicio' },
     ],

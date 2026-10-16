@@ -60,7 +60,8 @@ async function extractViaVision(buffer, filename) {
 async function extract(buffer, filename) {
   let parsed;
   try {
-    parsed = await pdfParse(buffer);
+    // Old pdf.js versions can misread pooled Node Buffers with a non-zero byteOffset.
+    parsed = await pdfParse(new Uint8Array(buffer));
   } catch (err) {
     throw new ApiError(422, 'EXTRACTION_FAILED', `No se pudo leer el PDF: ${err.message}`);
   }

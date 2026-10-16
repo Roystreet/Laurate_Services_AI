@@ -10,6 +10,7 @@ const { config } = require('./config');
 const swaggerSpec = require('./docs/swagger');
 const healthRoutes = require('./routes/health.routes');
 const convertRoutes = require('./routes/convert.routes');
+const documentRoutes = require('./routes/document.routes');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler.middleware');
 
 const app = express();
@@ -35,6 +36,7 @@ const apiLimiter = rateLimit({
 });
 app.use('/api', apiLimiter);
 
+app.use('/api/v1', documentRoutes);
 app.use('/api/v1', convertRoutes);
 
 app.use(notFoundHandler);

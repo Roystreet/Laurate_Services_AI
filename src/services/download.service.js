@@ -59,6 +59,9 @@ async function download(url, filename) {
     parsedUrl = new URL(google.url);
     if (!filename && google.filename) filename = google.filename;
   }
+  if (['www.dropbox.com', 'dropbox.com'].includes(parsedUrl.hostname)) {
+    parsedUrl.searchParams.set('dl', '1');
+  }
 
   const maxBytes = config.maxFileSizeMb * 1024 * 1024;
   let response;

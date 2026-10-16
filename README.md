@@ -2,6 +2,27 @@
 
 Servicio REST en Node.js que recibe un documento (**PDF**, **Word .docx** o **imagen/fotografía**) y devuelve todo su texto convertido a formato **Markdown**. El análisis se realiza con IA usando modelos **GPT de OpenAI**.
 
+## Integración del widget con Copilot (archivo o enlace)
+
+- `POST /api/v1/documents`: carga temporal de un archivo en el campo `file`. No exige la API key del convertidor; valida `Origin` contra `DOCUMENT_UPLOAD_ORIGINS`, aplica rate limiting, comprueba tipo/firma y limita tamaño y memoria. La comprobación de origen controla el uso desde navegadores; no sustituye autenticación de usuario.
+- Respuesta 201: `{ source: "document", filename, mimeType, url, expiresAt }`. La URL contiene un token aleatorio de acceso; tratarla como un enlace privado. La carga no llama a OpenAI.
+- `GET /api/v1/documents/:id?token=...`: descarga del archivo temporal con token. Sin token válido o después del vencimiento responde 404. No se permite cachear la respuesta.
+- `POST /api/v1/convert` conserva sus entradas multipart y JSON `{ url }`, y añade `source: "document" | "link"` a su respuesta. Resuelve directamente en memoria las URL temporales propias. Un enlace externo sigue el flujo de descarga existente.
+
+Configuración adicional:
+
+| Variable | Default | Uso |
+|---|---|---|
+| `PUBLIC_BASE_URL` | Origen local de la petición | Origen HTTPS público de esta API, obligatorio en producción para Copilot |
+| `DOCUMENT_UPLOAD_ORIGINS` | localhost:8082 y localhost:3000 (incluye 127.0.0.1) | Orígenes del widget, separados por comas |
+| `DOCUMENT_UPLOAD_MAX_MB` | `10` | Máximo por archivo del widget |
+| `DOCUMENT_TTL_SECONDS` | `900` | Tiempo de vida de cada documento |
+| `DOCUMENT_STORE_MAX_MB` | `100` | Memoria máxima de documentos temporales |
+
+El almacenamiento es temporal y de una sola instancia: reiniciar el proceso borra los archivos. Para varias réplicas se necesita un almacén compartido. El widget no lleva `API_KEY` ni `OPENAI_API_KEY`; Copilot conserva la clave de conversión y llama por HTTP al endpoint protegido. El tema completo está en `../Chat-Laurate/copilot/analisis-cv.yaml`.
+
+Pruebas: `npm test` ejecuta el recorrido carga → descarga → conversión, diferencia archivos de enlaces y verifica límites y expiración. Las pruebas automatizadas usan una respuesta de IA simulada; las llamadas reales deben verificarse por separado con la configuración local.
+
 ## Características
 
 - **Estrategia híbrida** (rápida y económica):
@@ -41,7 +62,7 @@ set NODE_ENV=production   # PowerShell: $env:NODE_ENV = "production"
 npm start
 ```
 
-En **producción** (`NODE_ENV=production`) la variable `API_KEY` es **obligatoria**: el servidor no arranca sin ella y todas las llamadas a `/api/v1/*` deben incluir el header `x-api-key`. Si defines `API_KEY` en desarrollo, la validación también se activa (útil para probar la autenticación).
+En **producción** (`NODE_ENV=production`) la variable `API_KEY` es **obligatoria**: el servidor no arranca sin ella y las llamadas a `/api/v1/convert` deben incluir el header `x-api-key`. Si defines `API_KEY` en desarrollo, la validación también se activa (útil para probar la autenticación).
 
 ## Variables de entorno
 

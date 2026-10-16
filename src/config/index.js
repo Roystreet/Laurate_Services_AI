@@ -16,6 +16,12 @@ const config = Object.freeze({
   rateLimitWindowMs: intFromEnv('RATE_LIMIT_WINDOW_MS', 15 * 60 * 1000),
   rateLimitMax: intFromEnv('RATE_LIMIT_MAX', 30),
   scannedPdfMinChars: intFromEnv('SCANNED_PDF_MIN_CHARS', 200),
+  publicBaseUrl: (process.env.PUBLIC_BASE_URL || '').replace(/\/$/, ''),
+  documentUploadMaxMb: intFromEnv('DOCUMENT_UPLOAD_MAX_MB', 10),
+  documentTtlSeconds: intFromEnv('DOCUMENT_TTL_SECONDS', 900),
+  documentStoreMaxMb: intFromEnv('DOCUMENT_STORE_MAX_MB', 100),
+  documentUploadOrigins: (process.env.DOCUMENT_UPLOAD_ORIGINS || 'http://localhost:8082,http://127.0.0.1:8082,http://localhost:3000,http://127.0.0.1:3000')
+    .split(',').map(value => value.trim()).filter(Boolean),
 });
 
 function assertConfig() {
@@ -24,6 +30,18 @@ function assertConfig() {
   }
   if (config.nodeEnv === 'production' && !config.apiKey) {
     throw new Error('En producción (NODE_ENV=production) la variable API_KEY es obligatoria para proteger el servicio');
+  }
+  if (config.publicBaseUrl) {
+    const url = new URL(config.publicBaseUrl);
+    if (!['http:', 'https:'].includes(url.protocol) || url.pathname !== '/' || url.search || url.hash || url.username || url.password) {
+      throw new Error('PUBLIC_BASE_URL debe ser el origen público del servicio, sin rutas ni credenciales');
+    }
+  }
+  if (config.nodeEnv === 'production' && config.publicBaseUrl && !config.publicBaseUrl.startsWith('https://')) {
+    throw new Error('En producción PUBLIC_BASE_URL debe ser una URL HTTPS accesible desde Copilot');
+  }
+  for (const key of ['documentUploadMaxMb', 'documentTtlSeconds', 'documentStoreMaxMb']) {
+    if (config[key] <= 0) throw new Error(`${key} debe ser mayor que cero`);
   }
 }
 

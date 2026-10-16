@@ -43,7 +43,7 @@ async function convert(req, res, next) {
     const meta = { model, strategy, processingMs: Date.now() - startedAt };
     if (tokensUsed > 0) meta.tokensUsed = tokensUsed;
 
-    res.json({ filename: originalname, mimeType: mimetype, markdown, meta });
+    res.json({ source: req.inputSource || 'document', filename: originalname, mimeType: mimetype, markdown, meta });
   } catch (err) {
     next(err);
   }
