@@ -20,8 +20,6 @@ const config = Object.freeze({
   documentUploadMaxMb: intFromEnv('DOCUMENT_UPLOAD_MAX_MB', 10),
   documentTtlSeconds: intFromEnv('DOCUMENT_TTL_SECONDS', 900),
   documentStoreMaxMb: intFromEnv('DOCUMENT_STORE_MAX_MB', 100),
-  documentUploadOrigins: (process.env.DOCUMENT_UPLOAD_ORIGINS || 'http://localhost:8082,http://127.0.0.1:8082,http://localhost:3000,http://127.0.0.1:3000')
-    .split(',').map(value => value.trim()).filter(Boolean),
 });
 
 function assertConfig() {

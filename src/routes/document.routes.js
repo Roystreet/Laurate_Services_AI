@@ -8,15 +8,9 @@ const { ApiError } = require('../utils/errors');
 
 const router = Router();
 
-function browserOrigin(req, res, next) {
+function requireUploadConfig(req, res, next) {
   if (config.nodeEnv === 'production' && !config.publicBaseUrl) {
     return next(new ApiError(503, 'UPLOAD_NOT_CONFIGURED', 'La carga de documentos requiere configurar PUBLIC_BASE_URL'));
-  }
-  const origin = req.get('origin');
-  const allowed = new Set(config.documentUploadOrigins);
-  allowed.add(new URL(publicBaseUrl(req)).origin);
-  if (!origin || !allowed.has(origin)) {
-    return next(new ApiError(403, 'UPLOAD_ORIGIN_DENIED', 'Este sitio no está habilitado para cargar documentos'));
   }
   return next();
 }
@@ -26,7 +20,7 @@ function browserOrigin(req, res, next) {
  * /api/v1/documents:
  *   post:
  *     summary: Carga temporal desde el widget (sin exponer la API key)
- *     description: Un archivo, origen del navegador permitido, rate limit y enlace temporal con token. No ejecuta IA.
+ *     description: Un archivo desde cualquier origen, rate limit y enlace temporal con token. No ejecuta IA.
  *     tags: [Documentos]
  *     requestBody:
  *       required: true
@@ -42,14 +36,12 @@ function browserOrigin(req, res, next) {
  *     responses:
  *       201:
  *         description: Documento temporal creado (source, filename, mimeType, url, expiresAt)
- *       403:
- *         description: Origen del navegador no permitido
  *       413:
  *         description: Archivo demasiado grande
  *       503:
  *         description: Almacenamiento temporal lleno
  */
-router.post('/documents', browserOrigin, createUpload(config.documentUploadMaxMb).single('file'), validateFile, (req, res, next) => {
+router.post('/documents', requireUploadConfig, createUpload(config.documentUploadMaxMb).single('file'), validateFile, (req, res, next) => {
   try {
     const document = documentStore.put(req.file);
     const url = new URL(`/api/v1/documents/${document.id}`, publicBaseUrl(req));

@@ -4,7 +4,7 @@ Servicio REST en Node.js que recibe un documento (**PDF**, **Word .docx** o **im
 
 ## Integración del widget con Copilot (archivo o enlace)
 
-- `POST /api/v1/documents`: carga temporal de un archivo en el campo `file`. No exige la API key del convertidor; valida `Origin` contra `DOCUMENT_UPLOAD_ORIGINS`, aplica rate limiting, comprueba tipo/firma y limita tamaño y memoria. La comprobación de origen controla el uso desde navegadores; no sustituye autenticación de usuario.
+- `POST /api/v1/documents`: carga temporal de un archivo en el campo `file`. Acepta cualquier origen, incluso peticiones sin cabecera `Origin`, y no exige la API key del convertidor. Aplica rate limiting, comprueba tipo/firma y limita tamaño y memoria.
 - Respuesta 201: `{ source: "document", filename, mimeType, url, expiresAt }`. La URL contiene un token aleatorio de acceso; tratarla como un enlace privado. La carga no llama a OpenAI.
 - `GET /api/v1/documents/:id?token=...`: descarga del archivo temporal con token. Sin token válido o después del vencimiento responde 404. No se permite cachear la respuesta.
 - `POST /api/v1/convert` conserva sus entradas multipart y JSON `{ url }`, y añade `source: "document" | "link"` a su respuesta. Resuelve directamente en memoria las URL temporales propias. Un enlace externo sigue el flujo de descarga existente.
@@ -14,7 +14,6 @@ Configuración adicional:
 | Variable | Default | Uso |
 |---|---|---|
 | `PUBLIC_BASE_URL` | Origen local de la petición | Origen HTTPS público de esta API, obligatorio en producción para Copilot |
-| `DOCUMENT_UPLOAD_ORIGINS` | localhost:8082 y localhost:3000 (incluye 127.0.0.1) | Orígenes del widget, separados por comas |
 | `DOCUMENT_UPLOAD_MAX_MB` | `10` | Máximo por archivo del widget |
 | `DOCUMENT_TTL_SECONDS` | `900` | Tiempo de vida de cada documento |
 | `DOCUMENT_STORE_MAX_MB` | `100` | Memoria máxima de documentos temporales |

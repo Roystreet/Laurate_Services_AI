@@ -5,7 +5,6 @@ process.env.API_KEY = 'synthetic-service-key';
 process.env.NODE_ENV = 'development';
 process.env.MAX_FILE_SIZE_MB = '1';
 process.env.DOCUMENT_UPLOAD_MAX_MB = '1';
-process.env.DOCUMENT_UPLOAD_ORIGINS = 'http://localhost:8082';
 process.env.PUBLIC_BASE_URL = '';
 process.env.RATE_LIMIT_MAX = '100';
 
@@ -107,10 +106,16 @@ test('converter authentication is required even for a staged URL', async () => {
   assert.equal(response.status, 401);
 });
 
-test('upload rejects absent/disallowed Origin, forged file types, oversize and multiple files', async () => {
+test('upload accepts any Origin and requests without an Origin header', async () => {
   for (const headers of [{}, { Origin: 'https://unrelated.example' }]) {
-    assert.equal((await fetch(base + '/api/v1/documents', { method: 'POST', headers, body: form() })).status, 403);
+    const response = await fetch(base + '/api/v1/documents', { method: 'POST', headers, body: form() });
+    assert.equal(response.status, 201);
+    assert.equal(response.headers.get('access-control-allow-origin'), '*');
+    assert.equal((await response.json()).source, 'document');
   }
+});
+
+test('upload rejects forged file types, oversize and multiple files', async () => {
   assert.equal((await fetch(base + '/api/v1/documents', { method: 'POST', headers: origin, body: form(Buffer.from('not pdf')) })).status, 400);
   assert.equal((await fetch(base + '/api/v1/documents', { method: 'POST', headers: origin, body: form(Buffer.alloc(1024 * 1024 + 1)) })).status, 413);
   const multiple = form(); multiple.append('file', new Blob([pdf], { type: 'application/pdf' }), 'cv2.pdf');

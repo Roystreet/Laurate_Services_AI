@@ -15,7 +15,7 @@ const options = {
         'estrategia híbrida: extracción local cuando el documento tiene texto y GPT Vision para imágenes y PDFs escaneados.',
         '',
         '**Seguridad:** `/api/v1/convert` requiere `x-api-key` cuando está configurada. La carga temporal del widget',
-        'valida el origen y tiene límites de tamaño y frecuencia; la descarga requiere el token temporal del enlace.',
+        'acepta cualquier origen y tiene límites de tamaño y frecuencia; la descarga requiere el token temporal del enlace.',
       ].join('\n'),
     },
     servers: [{ url: '/', description: 'Servidor actual' }],
