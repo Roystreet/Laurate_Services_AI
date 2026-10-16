@@ -14,20 +14,12 @@ const options = {
         'convertido a formato Markdown. El análisis se realiza con IA usando modelos GPT de OpenAI con una',
         'estrategia híbrida: extracción local cuando el documento tiene texto y GPT Vision para imágenes y PDFs escaneados.',
         '',
-        '**Seguridad:** `/api/v1/convert` requiere `x-api-key` cuando está configurada. La carga temporal del widget',
-        'acepta cualquier origen y tiene límites de tamaño y frecuencia; la descarga requiere el token temporal del enlace.',
+        'La conversión no requiere API key del cliente. La carga temporal del widget acepta cualquier origen',
+        'y tiene límites de tamaño y frecuencia; la descarga requiere el token temporal del enlace.',
       ].join('\n'),
     },
     servers: [{ url: '/', description: 'Servidor actual' }],
     components: {
-      securitySchemes: {
-        ApiKeyAuth: {
-          type: 'apiKey',
-          in: 'header',
-          name: 'x-api-key',
-          description: 'API key del servicio. Obligatoria en producción; en desarrollo solo si API_KEY está definida.',
-        },
-      },
       schemas: {
         ConvertUrlRequest: {
           type: 'object',

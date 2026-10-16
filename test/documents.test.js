@@ -1,6 +1,7 @@
 'use strict';
 
 process.env.OPENAI_API_KEY = 'synthetic-test-key';
+// A legacy deployment variable must not re-enable client authentication.
 process.env.API_KEY = 'synthetic-service-key';
 process.env.NODE_ENV = 'development';
 process.env.MAX_FILE_SIZE_MB = '1';
@@ -11,6 +12,8 @@ process.env.RATE_LIMIT_MAX = '100';
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const http = require('node:http');
+const { execFileSync } = require('node:child_process');
+const path = require('node:path');
 const { PDFDocument, StandardFonts } = require('pdf-lib');
 const { createDocumentStore } = require('../src/services/document-store.service');
 const { openai } = require('../src/services/openai.client');
@@ -19,7 +22,6 @@ const app = require('../src/app');
 let server, fixtureServer, base, fixtureUrl, pdf, staged;
 let failAi = false;
 let aiCalls = 0;
-const auth = { 'x-api-key': process.env.API_KEY };
 const origin = { Origin: 'http://localhost:8082' };
 
 before(async () => {
@@ -50,7 +52,7 @@ function form(buffer = pdf, filename = 'cv.pdf', type = 'application/pdf') {
   return body;
 }
 async function convert(url) {
-  return fetch(base + '/api/v1/convert', { method: 'POST', headers: { ...auth, 'Content-Type': 'application/json' }, body: JSON.stringify({ url }) });
+  return fetch(base + '/api/v1/convert', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url }) });
 }
 
 test('upload stages an original file without calling AI or requiring the converter key', async () => {
@@ -95,15 +97,24 @@ test('ordinary URL → converter identifies link source', async () => {
   assert.match(result.markdown, /LAURATE-TEST-7391/);
 });
 
-test('existing authenticated multipart contract still identifies a document', async () => {
-  const response = await fetch(base + '/api/v1/convert', { method: 'POST', headers: auth, body: form() });
+test('multipart conversion identifies a document without a client API key', async () => {
+  const response = await fetch(base + '/api/v1/convert', { method: 'POST', body: form() });
   assert.equal(response.status, 200);
   assert.equal((await response.json()).source, 'document');
 });
 
-test('converter authentication is required even for a staged URL', async () => {
+test('converter accepts a staged URL without a key even if a legacy API_KEY is set', async () => {
   const response = await fetch(base + '/api/v1/convert', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: staged.url }) });
-  assert.equal(response.status, 401);
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).source, 'document');
+});
+
+test('production configuration does not require a client API key', () => {
+  assert.doesNotThrow(() => execFileSync(process.execPath, ['-e', 'require("./src/config").assertConfig()'], {
+    cwd: path.resolve(__dirname, '..'),
+    env: { ...process.env, NODE_ENV: 'production', API_KEY: '', PUBLIC_BASE_URL: 'https://api.example.com' },
+    stdio: 'pipe',
+  }));
 });
 
 test('upload accepts any Origin and requests without an Origin header', async () => {
@@ -150,5 +161,7 @@ test('upstream errors have a structured response and allow retrying the staged U
 test('OpenAPI includes document routes and conversion source', async () => {
   const spec = await (await fetch(base + '/docs.json')).json();
   assert.ok(spec.paths['/api/v1/documents']);
+  assert.equal(spec.components.securitySchemes, undefined);
+  assert.equal(spec.paths['/api/v1/convert'].post.security, undefined);
   assert.deepEqual(spec.components.schemas.ConvertResponse.properties.source.enum, ['document', 'link']);
 });

@@ -4,7 +4,7 @@ Servicio REST en Node.js que recibe un documento (**PDF**, **Word .docx** o **im
 
 ## Integración del widget con Copilot (archivo o enlace)
 
-- `POST /api/v1/documents`: carga temporal de un archivo en el campo `file`. Acepta cualquier origen, incluso peticiones sin cabecera `Origin`, y no exige la API key del convertidor. Aplica rate limiting, comprueba tipo/firma y limita tamaño y memoria.
+- `POST /api/v1/documents`: carga temporal de un archivo en el campo `file`. Acepta cualquier origen, incluso peticiones sin cabecera `Origin`, y no exige API key del cliente. Aplica rate limiting, comprueba tipo/firma y limita tamaño y memoria.
 - Respuesta 201: `{ source: "document", filename, mimeType, url, expiresAt }`. La URL contiene un token aleatorio de acceso; tratarla como un enlace privado. La carga no llama a OpenAI.
 - `GET /api/v1/documents/:id?token=...`: descarga del archivo temporal con token. Sin token válido o después del vencimiento responde 404. No se permite cachear la respuesta.
 - `POST /api/v1/convert` conserva sus entradas multipart y JSON `{ url }`, y añade `source: "document" | "link"` a su respuesta. Resuelve directamente en memoria las URL temporales propias. Un enlace externo sigue el flujo de descarga existente.
@@ -18,7 +18,7 @@ Configuración adicional:
 | `DOCUMENT_TTL_SECONDS` | `900` | Tiempo de vida de cada documento |
 | `DOCUMENT_STORE_MAX_MB` | `100` | Memoria máxima de documentos temporales |
 
-El almacenamiento es temporal y de una sola instancia: reiniciar el proceso borra los archivos. Para varias réplicas se necesita un almacén compartido. El widget no lleva `API_KEY` ni `OPENAI_API_KEY`; Copilot conserva la clave de conversión y llama por HTTP al endpoint protegido. El tema completo está en `../Chat-Laurate/copilot/analisis-cv.yaml`.
+El almacenamiento es temporal y de una sola instancia: reiniciar el proceso borra los archivos. Para varias réplicas se necesita un almacén compartido. El convertidor no exige `API_KEY` ni la cabecera `x-api-key`. `OPENAI_API_KEY` sigue configurada únicamente en el servidor para llamar a OpenAI. El tema completo está en `../Chat-Laurate/copilot/analisis-cv.yaml`.
 
 Pruebas: `npm test` ejecuta el recorrido carga → descarga → conversión, diferencia archivos de enlaces y verifica límites y expiración. Las pruebas automatizadas usan una respuesta de IA simulada; las llamadas reales deben verificarse por separado con la configuración local.
 
@@ -33,7 +33,7 @@ Pruebas: `npm test` ejecuta el recorrido carga → descarga → conversión, dif
   | Word .docx | Extracción local (`mammoth`) → GPT estructura el Markdown | `local-mammoth+gpt` |
   | Imagen (JPEG/PNG/WEBP) | OCR y estructuración con GPT Vision | `openai-image-vision` |
 
-- **Seguridad en producción**: API key (`x-api-key`), rate limiting, límite de tamaño de archivo, whitelist de tipos con verificación de firma binaria (magic bytes) y headers de seguridad (`helmet`).
+- **Límites y validaciones**: rate limiting, límite de tamaño de archivo, whitelist de tipos con verificación de firma binaria (magic bytes) y headers de seguridad (`helmet`).
 - **Documentación interactiva** de los endpoints con Swagger UI en `/docs`.
 
 ## Requisitos
@@ -61,16 +61,15 @@ set NODE_ENV=production   # PowerShell: $env:NODE_ENV = "production"
 npm start
 ```
 
-En **producción** (`NODE_ENV=production`) la variable `API_KEY` es **obligatoria**: el servidor no arranca sin ella y las llamadas a `/api/v1/convert` deben incluir el header `x-api-key`. Si defines `API_KEY` en desarrollo, la validación también se activa (útil para probar la autenticación).
+La conversión está disponible sin autenticación del cliente en desarrollo y producción. No se utiliza `API_KEY`; se puede eliminar de las variables del despliegue. `OPENAI_API_KEY` continúa siendo obligatoria para procesar documentos con OpenAI.
 
 ## Variables de entorno
 
 | Variable | Obligatoria | Default | Descripción |
 |---|---|---|---|
 | `OPENAI_API_KEY` | ✅ | — | API key de OpenAI |
-| `API_KEY` | Solo en producción | — | Clave que deben enviar los clientes en `x-api-key` |
 | `PORT` | No | `3000` | Puerto del servidor |
-| `NODE_ENV` | No | `development` | `production` activa la seguridad |
+| `NODE_ENV` | No | `development` | Entorno de ejecución |
 | `OPENAI_TEXT_MODEL` | No | `gpt-4o-mini` | Modelo para estructurar texto a Markdown |
 | `OPENAI_VISION_MODEL` | No | `gpt-4o-mini` | Modelo de visión (imágenes y PDFs escaneados) |
 | `MAX_FILE_SIZE_MB` | No | `10` | Tamaño máximo del archivo |
@@ -84,7 +83,7 @@ Documentación interactiva: **http://localhost:3000/docs** (spec JSON en `/docs.
 
 | Método | Ruta | Auth | Descripción |
 |---|---|---|---|
-| `POST` | `/api/v1/convert` | `x-api-key` (producción) | Convierte un documento a Markdown |
+| `POST` | `/api/v1/convert` | Ninguna | Convierte un documento a Markdown |
 | `GET` | `/health` | Ninguna | Estado del servicio |
 | `GET` | `/docs` | Ninguna | Swagger UI |
 
@@ -138,7 +137,6 @@ Hay **dos formas** de enviar el documento:
 | 400 | `MISSING_FILE` | No se envió ni el campo `file` ni una `url` en el body JSON |
 | 400 | `UNSUPPORTED_FILE_TYPE` | Tipo no soportado o contenido que no coincide con el tipo declarado |
 | 400 | `INVALID_URL` | La URL es inválida o usa un protocolo distinto de http/https |
-| 401 | `INVALID_API_KEY` | Header `x-api-key` ausente o inválido |
 | 413 | `FILE_TOO_LARGE` | El documento excede `MAX_FILE_SIZE_MB` |
 | 422 | `EXTRACTION_FAILED` | Documento corrupto o sin contenido extraíble |
 | 422 | `DOWNLOAD_FAILED` | No se pudo descargar el documento desde la URL (error HTTP, timeout o respuesta vacía) |
@@ -169,8 +167,6 @@ curl.exe -X POST http://localhost:3000/api/v1/convert -H "Content-Type: applicat
 # Convertir un Google Doc compartido con enlace
 curl.exe -X POST http://localhost:3000/api/v1/convert -H "Content-Type: application/json" -d "{\"url\": \"https://docs.google.com/document/d/TU_ID_DE_DOCUMENTO/edit?usp=sharing\"}"
 
-# En producción (con API key)
-curl.exe -X POST http://localhost:3000/api/v1/convert -H "x-api-key: tu-clave-secreta" -F "file=@C:\ruta\informe.pdf"
 ```
 
 ## Estructura del proyecto
@@ -188,7 +184,7 @@ src/
 │   ├── download.service.js   # Descarga de documentos desde URL (con límites y timeout)
 │   ├── markdown.service.js   # Texto crudo → Markdown vía GPT (con chunking)
 │   └── extractors/           # Extractores por tipo: pdf, docx, imagen
-├── middleware/               # API key, upload/validación (directa y por URL), errores
+├── middleware/               # Upload/validación (directa y por URL), errores
 └── utils/                    # ApiError y detección de tipos de archivo (magic bytes)
 ```
 

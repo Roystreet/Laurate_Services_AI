@@ -16,11 +16,7 @@ const app = require('./app');
 const server = app.listen(config.port, () => {
   console.log(`Laurate Convertidor Markdown escuchando en http://localhost:${config.port} (modo: ${config.nodeEnv})`);
   console.log(`Documentación de la API: http://localhost:${config.port}/docs`);
-  if (config.apiKey || config.nodeEnv === 'production') {
-    console.log('Seguridad: API key requerida en /api/v1/convert (header x-api-key)');
-  } else {
-    console.log('Seguridad: API key desactivada (modo desarrollo sin API_KEY definida)');
-  }
+  console.log('Conversión disponible sin API key del cliente');
 });
 
 process.on('unhandledRejection', (reason) => {

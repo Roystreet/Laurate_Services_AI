@@ -1,7 +1,6 @@
 'use strict';
 
 const { Router } = require('express');
-const { apiKeyMiddleware } = require('../middleware/apiKey.middleware');
 const { upload, fetchFromUrl, validateFile } = require('../middleware/upload.middleware');
 const { convert } = require('../controllers/convert.controller');
 
@@ -33,10 +32,8 @@ const router = Router();
  *       - **Word .docx**: extracción local con estructura + GPT (`local-mammoth+gpt`).
  *       - **Imágenes/fotografías**: OCR y estructuración con GPT Vision (`openai-image-vision`).
  *
- *       En producción requiere el header `x-api-key`.
+ *       No requiere API key del cliente.
  *     tags: [Conversión]
- *     security:
- *       - ApiKeyAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -61,12 +58,6 @@ const router = Router();
  *               $ref: '#/components/schemas/ConvertResponse'
  *       400:
  *         description: Solicitud inválida (falta el documento, tipo no soportado o URL inválida)
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
- *       401:
- *         description: API key ausente o inválida
  *         content:
  *           application/json:
  *             schema:
@@ -96,6 +87,6 @@ const router = Router();
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.post('/convert', apiKeyMiddleware, upload.single('file'), fetchFromUrl, validateFile, convert);
+router.post('/convert', upload.single('file'), fetchFromUrl, validateFile, convert);
 
 module.exports = router;
