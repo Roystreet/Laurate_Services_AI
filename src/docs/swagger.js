@@ -23,10 +23,16 @@ const options = {
       schemas: {
         CvMatchRequest: {
           type: 'object',
-          required: ['cvMarkdown', 'proposalUrl'],
+          required: ['cvMarkdown'],
+          description: 'Envía exactamente una fuente no vacía: proposalUrl o proposalText. La otra puede omitirse o enviarse vacía.',
+          oneOf: [
+            { required: ['proposalUrl'], properties: { proposalUrl: { format: 'uri', pattern: '\\S' }, proposalText: { pattern: '^\\s*$' } } },
+            { required: ['proposalText'], properties: { proposalText: { pattern: '\\S' }, proposalUrl: { pattern: '^\\s*$' } } },
+          ],
           properties: {
             cvMarkdown: { type: 'string', minLength: 1, maxLength: 80000, description: 'Markdown del CV devuelto por /api/v1/convert' },
-            proposalUrl: { type: 'string', format: 'uri', description: 'URL pública de una propuesta laboral o documento compartido' },
+            proposalUrl: { type: 'string', description: 'URL pública de una propuesta laboral, documento compartido o archivo temporal del widget' },
+            proposalText: { type: 'string', maxLength: 80000, description: 'Texto completo de una sola propuesta laboral pegada o escrita por el usuario' },
           },
         },
         CvMatchResponse: {

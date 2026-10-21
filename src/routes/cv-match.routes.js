@@ -8,9 +8,10 @@ const router = Router();
  * @openapi
  * /api/v1/cv-match:
  *   post:
- *     summary: Compara un CV leído con una propuesta laboral pública
+ *     summary: Compara un CV leído con una propuesta laboral por enlace, archivo o texto
  *     description: |
- *       Recibe el Markdown del CV devuelto por /convert y una URL de propuesta.
+ *       Recibe el Markdown del CV devuelto por /convert y exactamente una propuesta: proposalUrl o proposalText.
+ *       proposalText permite pegar el contenido completo sin descargar ni convertir un documento.
  *       Admite HTML público, PDF, DOCX, JPEG, PNG, WEBP y documentos compartidos de Google/Dropbox.
  *       No requiere API key del cliente. No acepta destinos de red privados.
  *       Límite de 80.000 caracteres por documento y 512 KB de JSON. Presupuesto total de 110 segundos.

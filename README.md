@@ -4,7 +4,7 @@ Servicio REST en Node.js que recibe un documento (**PDF**, **Word .docx** o **im
 
 ## Match de CV con propuesta laboral
 
-`POST /api/v1/cv-match` compara el CV ya leído con una sola propuesta laboral. El tema de Copilot Studio está en `../Chat-Laurate/copilot/match-cv-propuesta.yaml` y utiliza el mismo botón y servicio de carga del widget. Primero se lee el CV con `/api/v1/convert`, se confirma la lectura y después se solicita el enlace de la propuesta. El análisis utiliza `OPENAI_API_KEY` y `OPENAI_TEXT_MODEL` del servidor; no necesita Flowise ni una clave del cliente.
+`POST /api/v1/cv-match` compara el CV ya leído con una sola propuesta laboral recibida como **enlace público**, **archivo adjunto** o **texto completo escrito/pegado**. El tema de Copilot Studio está en `../Chat-Laurate/copilot/match-cv-propuesta.yaml` y utiliza el mismo botón y servicio de carga del widget. Primero se lee el CV con `/api/v1/convert`, se confirma la lectura y después se solicita la propuesta. El análisis utiliza `OPENAI_API_KEY` y `OPENAI_TEXT_MODEL` del servidor; no necesita Flowise ni una clave del cliente.
 
 Entrada JSON:
 
@@ -14,6 +14,17 @@ Entrada JSON:
   "proposalUrl": "https://ejemplo.com/empleos/desarrollador"
 }
 ```
+
+Para una propuesta escrita, enviar `proposalText` en lugar del enlace:
+
+```json
+{
+  "cvMarkdown": "# CV\n\nDesarrollador de Node.js con cuatro años de experiencia en APIs REST y SQL...",
+  "proposalText": "Desarrollador Backend\n\nRequisitos: tres años de experiencia en Node.js, APIs REST y SQL.\nFunciones: desarrollar y mantener servicios web."
+}
+```
+
+Se exige exactamente una fuente no vacía (`proposalUrl` o `proposalText`). La otra puede omitirse o enviarse como cadena vacía; enviar las dos con contenido devuelve 400. El widget transforma un archivo adjunto en una URL temporal, que se envía como `proposalUrl`. El texto escrito pasa directamente al comparador, conserva su contenido interno y no se descarga ni se convierte; tampoco se abren los enlaces incluidos dentro del texto.
 
 Respuesta 200:
 
@@ -29,13 +40,13 @@ Respuesta 200:
 - Propuestas admitidas: páginas HTML públicas, PDF, DOCX, JPEG, PNG, WEBP, Google Docs/Drive/Slides/Sheets y Dropbox compartidos. En HTML se prioriza `JobPosting` (JSON-LD); en su ausencia se lee el contenido principal y se eliminan navegación, scripts y formularios. Se admite compresión HTTP y se respeta el charset declarado.
 - El lector de propuestas verifica cada destino y redirección y conecta a una IP pública previamente validada. Bloquea direcciones internas, loopback, enlaces con credenciales y respuestas DNS mixtas públicas/privadas. Las URL temporales propias se resuelven en memoria con su token, sin descarga de red.
 - Se requiere el enlace de una sola vacante. Páginas con inicio de sesión, bloqueo o contenido no legible sin JavaScript requieren otro enlace o un documento público. No se ejecuta JavaScript del sitio ni se inicia sesión en portales.
-- Límites: 80.000 caracteres por documento, sin truncamiento; JSON de hasta 512 KB en este endpoint; archivos según `MAX_FILE_SIZE_MB`. La descarga tiene hasta 30 segundos y cinco redirecciones. El análisis completo tiene 110 segundos; las llamadas de IA de este recorrido no realizan reintentos automáticos y reciben la señal de cancelación.
+- Límites: 80.000 caracteres por documento o texto escrito, sin truncamiento; JSON de hasta 512 KB en este endpoint; archivos según `MAX_FILE_SIZE_MB`. La descarga tiene hasta 30 segundos y cinco redirecciones. El análisis completo, incluido el de texto escrito, tiene 110 segundos; las llamadas de IA de este recorrido no realizan reintentos automáticos y reciben la señal de cancelación.
 
-Los errores mantienen `{ "error": { "code", "message", "status" } }`: 400 para entradas/destinos inválidos, 404 para documentos temporales vencidos, 413 para límites, 422 para propuestas inaccesibles o ilegibles, 429 por frecuencia, 502 para fallos o respuestas inválidas de IA y 504 por tiempo agotado. El tema conserva el CV durante los reintentos de propuesta. Escribir `reintentar` vuelve a usar el enlace anterior; enviar otro enlace lo reemplaza. Al terminar se elimina el estado local del tema.
+Los errores mantienen `{ "error": { "code", "message", "status" } }`: 400 para entradas/destinos inválidos, 404 para documentos temporales vencidos, 413 para límites, 422 para propuestas inaccesibles o ilegibles, 429 por frecuencia, 502 para fallos o respuestas inválidas de IA y 504 por tiempo agotado. El tema conserva el CV durante los reintentos de propuesta. Escribir `reintentar` vuelve a usar el enlace o texto anterior; enviar otra propuesta reemplaza esa fuente y limpia la otra. Al terminar se elimina el estado local del tema.
 
-Para instalar: ejecutar `npm install`, mantener la configuración actual de OpenAI y publicar el backend en su origen HTTPS. En el agente, inicializar `Global.CONVERT_API_URL` con `/api/v1/convert` y `Global.CV_MATCH_API_URL` con `/api/v1/cv-match`. Swagger documenta el contrato en `/docs` y `/docs.json`. `ELEVENLABS_API_KEY` es una variable opcional de voz y no interviene en este análisis.
+Para instalar: ejecutar `npm install`, mantener la configuración actual de OpenAI y publicar el backend en su origen HTTPS. Desplegar el backend que acepta `proposalText` antes de actualizar y publicar el tema y el widget. El tema de match usa los endpoints HTTPS directamente; no requiere variables globales de URL. Swagger documenta el contrato en `/docs` y `/docs.json`. `ELEVENLABS_API_KEY` es una variable opcional de voz y no interviene en este análisis.
 
-`npm test` incluye el recorrido carga → conversión → match, extracción HTML/documental, los tres veredictos, aislamiento entre solicitudes, errores de IA, límites y vencimientos, DNS/redirecciones inseguras, compresión y cancelación. Las pruebas automatizadas simulan OpenAI y la red externa. La comprobación del agente publicado debe realizarse en Copilot Studio y en el widget con los endpoints del despliegue.
+`npm test` incluye el recorrido carga → conversión → match, propuestas escritas de más de 2.000 caracteres sin descarga/conversión, extracción HTML/documental, los tres veredictos, cambios entre fuentes, aislamiento entre solicitudes, errores de IA, límites y vencimientos, DNS/redirecciones inseguras, compresión y cancelación. Las pruebas automatizadas simulan OpenAI y la red externa. La comprobación del agente publicado debe realizarse en Copilot Studio y en el widget con los endpoints del despliegue.
 
 ## Integración del widget con Copilot (archivo o enlace)
 

@@ -99,6 +99,43 @@ test('CV upload → convert → public vacancy → typed verdict works without c
   assert.ok(!lastMatchInput.propuesta.includes('NO-INCLUIR'));
 });
 
+test('a complete pasted proposal reaches matching intact without downloading or converting it', async () => {
+  const written = `${proposalText}\n\nFunciones:\n- APIs REST  y SQL\n- Reportes con valores < 10\n${'Descripción de la vacante. '.repeat(160)}\nMás información: https://jobs.example/vacante`;
+  const response = await match({ cvMarkdown, proposalUrl: '', proposalText: written });
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).verdict, 'COMPATIBLE');
+  assert.equal(lastMatchInput.cv, cvMarkdown);
+  assert.equal(lastMatchInput.propuesta, written);
+  assert.equal(lastDownloadUrl, undefined);
+  assert.equal(formatCalls, 0);
+  assert.equal(matchCalls, 1);
+});
+
+test('written proposals use the same evidence-based incompatible and insufficient verdicts', async () => {
+  result = { ...compatible, requirements: [{ requirement: '8 años de experiencia, indispensable.', mandatory: true, cvEvidence: '4 años', status: 'NOT_MET' }] };
+  let output = await (await match({ cvMarkdown, proposalText })).json();
+  assert.equal(output.verdict, 'NO_COMPATIBLE');
+  result = { ...compatible, requirements: [{ requirement: 'Certificación obligatoria.', mandatory: true, cvEvidence: null, status: 'UNKNOWN' }] };
+  output = await (await match({ cvMarkdown, proposalText })).json();
+  assert.equal(output.verdict, 'INFORMACION_INSUFICIENTE');
+  assert.match(output.text, /Información pendiente/);
+  assert.equal(lastDownloadUrl, undefined);
+});
+
+test('a failed written proposal can be retried or replaced by a URL and then new text', async () => {
+  aiMode = 'error';
+  assert.equal((await match({ cvMarkdown, proposalText })).status, 502);
+  aiMode = 'normal';
+  assert.equal((await match({ cvMarkdown, proposalText })).status, 200);
+  assert.equal(lastMatchInput.propuesta, proposalText);
+  assert.equal((await match({ cvMarkdown, proposalUrl: 'https://jobs.example/vacante', proposalText: '' })).status, 200);
+  assert.match(lastMatchInput.propuesta, /PROPUESTA-7391/);
+  const replacement = 'Otra propuesta: Analista de datos con experiencia en SQL y pruebas de calidad.';
+  assert.equal((await match({ cvMarkdown, proposalText: replacement, proposalUrl: '' })).status, 200);
+  assert.equal(lastMatchInput.propuesta, replacement);
+  assert.equal(lastMatchInput.cv, cvMarkdown);
+});
+
 test('incompatibility and insufficient information produce distinct evidence and advice', async () => {
   result = { ...compatible, requirements: [{ requirement: '8 años de experiencia, indispensable.', mandatory: true, cvEvidence: '4 años', status: 'NOT_MET' }] };
   let output = await (await match()).json();
@@ -225,10 +262,27 @@ test('multiple vacancies, JS shells, login pages and oversized proposal text are
 test('invalid request types, empty inputs, credentials and protocols are rejected', async () => {
   for (const body of [{}, { cvMarkdown: '', proposalUrl: 'https://example.com' }, { cvMarkdown: [], proposalUrl: 'https://example.com' },
     { cvMarkdown, proposalUrl: [] }, { cvMarkdown, proposalUrl: 'not a URL' }, { cvMarkdown, proposalUrl: 'file:///etc/passwd' },
-    { cvMarkdown, proposalUrl: 'https://user:password@example.com/job' }]) {
+    { cvMarkdown, proposalUrl: 'https://user:password@example.com/job' },
+    { cvMarkdown, proposalText: [] }, { cvMarkdown, proposalText: null }, { cvMarkdown, proposalText: 123 },
+    { cvMarkdown, proposalText: ' \n\t ' }, { cvMarkdown, proposalUrl: '', proposalText: '' },
+    { cvMarkdown, proposalUrl: 'https://example.com/job', proposalText },
+    { cvMarkdown, proposalUrl: null, proposalText }, { cvMarkdown: '', proposalText }]) {
     assert.equal((await match(body)).status, 400);
   }
   assert.equal(matchCalls, 0);
+  assert.equal(lastDownloadUrl, undefined);
+});
+
+test('both 80,000-character inputs fit the JSON limit and longer written proposals are rejected without truncation', async () => {
+  const exact = 'é'.repeat(80000);
+  assert.equal((await match({ cvMarkdown: exact, proposalText: exact })).status, 200);
+  assert.equal(lastMatchInput.propuesta, exact);
+  assert.equal(lastMatchInput.cv, exact);
+  const response = await match({ cvMarkdown, proposalText: exact + 'x' });
+  assert.equal(response.status, 413);
+  assert.equal((await response.json()).error.code, 'CONTENT_TOO_LONG');
+  assert.equal(matchCalls, 1);
+  assert.equal(lastDownloadUrl, undefined);
 });
 
 test('80,000 CV characters fit the route-specific JSON limit; larger CVs are not truncated', async () => {
@@ -299,9 +353,34 @@ test('the total deadline returns 504 and aborts ongoing work', async () => {
   } finally { s.closeAllConnections(); s.close(); }
 });
 
+test('the total deadline also aborts matching for a written proposal', async () => {
+  let observedSignal;
+  const deadlineApp = express();
+  deadlineApp.use(express.json());
+  deadlineApp.post('/match', createMatchHandler({ timeoutMs: 20,
+    extractProposal: () => { throw new Error('Must not download written proposals'); },
+    compare: async (_cv, proposal, { signal }) => {
+      assert.equal(proposal, proposalText);
+      observedSignal = signal;
+      return new Promise(() => {});
+    },
+  }));
+  deadlineApp.use(errorHandler);
+  const s = await listen(deadlineApp);
+  try {
+    const response = await fetch(`http://127.0.0.1:${s.address().port}/match`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cvMarkdown, proposalText }) });
+    assert.equal(response.status, 504);
+    assert.equal((await response.json()).error.code, 'MATCH_TIMEOUT');
+    assert.equal(observedSignal.aborted, true);
+  } finally { s.closeAllConnections(); s.close(); }
+});
+
 test('OpenAPI exposes the complete matching contract', async () => {
   const spec = await (await fetch(`${base}/docs.json`)).json();
   assert.ok(spec.paths['/api/v1/cv-match'].post.responses['504']);
   assert.equal(spec.components.schemas.CvMatchRequest.properties.cvMarkdown.maxLength, 80000);
+  assert.equal(spec.components.schemas.CvMatchRequest.properties.proposalText.maxLength, 80000);
+  assert.deepEqual(spec.components.schemas.CvMatchRequest.required, ['cvMarkdown']);
+  assert.equal(spec.components.schemas.CvMatchRequest.oneOf.length, 2);
   assert.deepEqual(spec.components.schemas.CvMatchResponse.properties.verdict.enum, ['COMPATIBLE', 'NO_COMPATIBLE', 'INFORMACION_INSUFICIENTE']);
 });
