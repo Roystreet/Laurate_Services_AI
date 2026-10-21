@@ -11,6 +11,12 @@ function notFoundHandler(req, res) {
 
 // eslint-disable-next-line no-unused-vars
 function errorHandler(err, req, res, next) {
+  if (err.type === 'entity.too.large') {
+    return res.status(413).json({ error: { code: 'BODY_TOO_LARGE', message: 'El JSON excede el tamaño máximo permitido', status: 413 } });
+  }
+  if (err.type === 'entity.parse.failed') {
+    return res.status(400).json({ error: { code: 'INVALID_JSON', message: 'El cuerpo debe contener JSON válido', status: 400 } });
+  }
   if (err instanceof ApiError) {
     return res.status(err.statusCode).json({
       error: { code: err.code, message: err.message, status: err.statusCode },

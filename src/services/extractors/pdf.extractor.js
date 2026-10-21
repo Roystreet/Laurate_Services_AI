@@ -4,7 +4,7 @@
 // que intenta leer un PDF de prueba inexistente.
 const pdfParse = require('pdf-parse/lib/pdf-parse.js');
 
-const { openai } = require('../openai.client');
+const { openai, completionText } = require('../openai.client');
 const { config } = require('../../config');
 const { ApiError } = require('../../utils/errors');
 
@@ -22,7 +22,7 @@ function looksScanned(text, numPages) {
 }
 
 // OpenAI rasteriza internamente el PDF (límite ~100 páginas / 32 MB por solicitud)
-async function extractViaVision(buffer, filename) {
+async function extractViaVision(buffer, filename, { signal } = {}) {
   try {
     const completion = await openai.chat.completions.create({
       model: config.visionModel,
@@ -39,9 +39,9 @@ async function extractViaVision(buffer, filename) {
           ],
         },
       ],
-    });
+    }, signal ? { signal, maxRetries: 0 } : undefined);
 
-    const markdown = (completion.choices[0].message.content || '').trim();
+    const markdown = completionText(completion);
     if (!markdown) {
       throw new ApiError(422, 'EXTRACTION_FAILED', 'No se pudo extraer contenido del PDF escaneado');
     }
@@ -57,7 +57,7 @@ async function extractViaVision(buffer, filename) {
   }
 }
 
-async function extract(buffer, filename) {
+async function extract(buffer, filename, options) {
   let parsed;
   try {
     // Old pdf.js versions can misread pooled Node Buffers with a non-zero byteOffset.
@@ -68,7 +68,7 @@ async function extract(buffer, filename) {
 
   const text = (parsed.text || '').trim();
   if (looksScanned(text, parsed.numpages)) {
-    return extractViaVision(buffer, filename);
+    return extractViaVision(buffer, filename, options);
   }
   return { rawContent: text, strategy: 'local-pdf-parse' };
 }

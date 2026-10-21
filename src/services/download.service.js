@@ -41,27 +41,31 @@ function looksLikeHtml(buffer) {
   return head.startsWith('<!doctype html') || head.startsWith('<html') || head.startsWith('<');
 }
 
-// Descarga el documento desde una URL y devuelve un objeto con la misma forma
-// que req.file de multer ({ buffer, mimetype, originalname }).
-async function download(url, filename) {
+// Shared by the original converter and the public proposal downloader.
+function resolveDownloadUrl(url, filename) {
   let parsedUrl;
-  try {
-    parsedUrl = new URL(url);
-  } catch (err) {
-    throw new ApiError(400, 'INVALID_URL', `La URL proporcionada no es válida: ${url}`);
+  try { parsedUrl = new URL(url); } catch (_) {
+    throw new ApiError(400, 'INVALID_URL', 'La URL proporcionada no es válida');
   }
-  if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
-    throw new ApiError(400, 'INVALID_URL', 'Solo se permiten URLs con protocolo http o https');
+  if (!['http:', 'https:'].includes(parsedUrl.protocol) || parsedUrl.username || parsedUrl.password) {
+    throw new ApiError(400, 'INVALID_URL', 'Usa una URL http o https sin credenciales');
   }
-
   const google = resolveGoogleUrl(parsedUrl);
   if (google) {
     parsedUrl = new URL(google.url);
-    if (!filename && google.filename) filename = google.filename;
+    filename ||= google.filename;
   }
-  if (['www.dropbox.com', 'dropbox.com'].includes(parsedUrl.hostname)) {
-    parsedUrl.searchParams.set('dl', '1');
-  }
+  if (['www.dropbox.com', 'dropbox.com'].includes(parsedUrl.hostname)) parsedUrl.searchParams.set('dl', '1');
+  return { url: parsedUrl, filename, google: Boolean(google) };
+}
+
+// Descarga el documento desde una URL y devuelve un objeto con la misma forma
+// que req.file de multer ({ buffer, mimetype, originalname }).
+async function download(url, filename) {
+  const resolved = resolveDownloadUrl(url, filename);
+  const parsedUrl = resolved.url;
+  const google = resolved.google;
+  filename = resolved.filename;
 
   const maxBytes = config.maxFileSizeMb * 1024 * 1024;
   let response;
@@ -110,4 +114,4 @@ async function download(url, filename) {
   return { buffer, mimetype, originalname };
 }
 
-module.exports = { download };
+module.exports = { download, resolveDownloadUrl, looksLikeHtml };

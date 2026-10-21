@@ -1,6 +1,6 @@
 'use strict';
 
-const { openai } = require('./openai.client');
+const { openai, completionText } = require('./openai.client');
 const { config } = require('../config');
 const { ApiError } = require('../utils/errors');
 
@@ -31,7 +31,7 @@ function splitIntoChunks(text) {
   return chunks;
 }
 
-async function toMarkdown(rawContent, { filename } = {}) {
+async function toMarkdown(rawContent, { filename, signal } = {}) {
   const chunks = splitIntoChunks(rawContent);
   const parts = [];
   let totalTokens = 0;
@@ -46,10 +46,11 @@ async function toMarkdown(rawContent, { filename } = {}) {
           { role: 'system', content: SYSTEM_PROMPT },
           { role: 'user', content: `Documento: ${filename || 'sin nombre'}${chunkNote}\n\n${chunks[i]}` },
         ],
-      });
-      parts.push(completion.choices[0].message.content || '');
+      }, signal ? { signal, maxRetries: 0 } : undefined);
+      parts.push(completionText(completion));
       totalTokens += completion.usage ? completion.usage.total_tokens : 0;
     } catch (err) {
+      if (err instanceof ApiError) throw err;
       throw new ApiError(502, 'UPSTREAM_AI_ERROR', `Fallo al procesar el documento con el modelo de IA: ${err.message}`);
     }
   }

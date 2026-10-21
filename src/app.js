@@ -11,6 +11,7 @@ const swaggerSpec = require('./docs/swagger');
 const healthRoutes = require('./routes/health.routes');
 const convertRoutes = require('./routes/convert.routes');
 const documentRoutes = require('./routes/document.routes');
+const cvMatchRoutes = require('./routes/cv-match.routes');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler.middleware');
 
 const app = express();
@@ -18,6 +19,7 @@ const app = express();
 app.disable('x-powered-by');
 app.use(helmet());
 app.use(cors());
+app.use('/api/v1/cv-match', express.json({ limit: '512kb' }));
 app.use(express.json({ limit: '100kb' }));
 
 app.use(healthRoutes);
@@ -38,6 +40,7 @@ app.use('/api', apiLimiter);
 
 app.use('/api/v1', documentRoutes);
 app.use('/api/v1', convertRoutes);
+app.use('/api/v1', cvMatchRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

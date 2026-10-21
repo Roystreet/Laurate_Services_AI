@@ -21,6 +21,22 @@ const options = {
     servers: [{ url: '/', description: 'Servidor actual' }],
     components: {
       schemas: {
+        CvMatchRequest: {
+          type: 'object',
+          required: ['cvMarkdown', 'proposalUrl'],
+          properties: {
+            cvMarkdown: { type: 'string', minLength: 1, maxLength: 80000, description: 'Markdown del CV devuelto por /api/v1/convert' },
+            proposalUrl: { type: 'string', format: 'uri', description: 'URL pública de una propuesta laboral o documento compartido' },
+          },
+        },
+        CvMatchResponse: {
+          type: 'object',
+          required: ['verdict', 'text'],
+          properties: {
+            verdict: { type: 'string', enum: ['COMPATIBLE', 'NO_COMPATIBLE', 'INFORMACION_INSUFICIENTE'] },
+            text: { type: 'string', description: 'Markdown en español con veredicto, evidencia, brechas, recomendaciones e información pendiente' },
+          },
+        },
         ConvertUrlRequest: {
           type: 'object',
           required: ['url'],
@@ -78,6 +94,7 @@ const options = {
     tags: [
       { name: 'Documentos', description: 'Carga y descarga temporal del widget' },
       { name: 'Conversión', description: 'Conversión de documentos a Markdown' },
+      { name: 'Empleabilidad', description: 'Match del CV con una propuesta laboral' },
       { name: 'Salud', description: 'Estado del servicio' },
     ],
   },

@@ -1,6 +1,6 @@
 'use strict';
 
-const { openai } = require('../openai.client');
+const { openai, completionText } = require('../openai.client');
 const { config } = require('../../config');
 const { ApiError } = require('../../utils/errors');
 
@@ -12,7 +12,7 @@ const OCR_PROMPT = [
   'Responde ÚNICAMENTE con el Markdown, sin bloques de código envolventes ni comentarios.',
 ].join(' ');
 
-async function extract(buffer, mimeType) {
+async function extract(buffer, mimeType, { signal } = {}) {
   try {
     const completion = await openai.chat.completions.create({
       model: config.visionModel,
@@ -26,9 +26,9 @@ async function extract(buffer, mimeType) {
           ],
         },
       ],
-    });
+    }, signal ? { signal, maxRetries: 0 } : undefined);
 
-    const markdown = (completion.choices[0].message.content || '').trim();
+    const markdown = completionText(completion);
     if (!markdown) {
       throw new ApiError(422, 'EXTRACTION_FAILED', 'No se pudo extraer contenido de la imagen');
     }
