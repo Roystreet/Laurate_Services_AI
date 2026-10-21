@@ -3,6 +3,7 @@ process.env.OPENAI_API_KEY = 'synthetic-test-key';
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const express = require('express');
+const cors = require('cors');
 const { EventEmitter } = require('node:events');
 const { InterviewService } = require('../src/services/interview.service');
 const { createProvider } = require('../src/services/interview-provider');
@@ -108,14 +109,26 @@ test('sideband executes each tool once and browser never needs model tools or AP
   assert.ok(!JSON.stringify(h.credentials).includes('synthetic-test-key'));
 });
 
-test('HTTP lifecycle rejects untrusted origins, wrong capabilities and invalid offers; streams state', async () => {
-  const h = harness(); const app = express(); app.use(express.json());
-  app.use('/api/v1/interviews', createInterviewRouter({ service: h.service, enabled: true, origins: ['https://widget.example'] })); app.use(errorHandler);
+test('HTTP lifecycle accepts every origin, rejects wrong capabilities and invalid offers; streams state', async () => {
+  const h = harness(); const app = express(); app.use(cors()); app.use(express.json());
+  app.use('/api/v1/interviews', createInterviewRouter({ service: h.service, enabled: true })); app.use(errorHandler);
   const server = app.listen(0, '127.0.0.1'); await new Promise(resolve => server.once('listening', resolve));
   const base = `http://127.0.0.1:${server.address().port}/api/v1/interviews`;
   const headers = { origin: 'https://widget.example', 'Content-Type': 'application/json' };
   try {
-    assert.equal((await fetch(base, { method: 'POST' })).status, 403);
+    for (const origin of [undefined, 'http://localhost:9090', 'https://portal.example', 'null']) {
+      const originHeaders = origin === undefined ? {} : { origin };
+      const response = await fetch(base, { method: 'POST', headers: originHeaders });
+      assert.equal(response.status, 201);
+      assert.equal(response.headers.get('access-control-allow-origin'), '*');
+      const credentials = await response.json();
+      const closed = await fetch(`${base}/${credentials.id}/end`, { method: 'POST', headers: { ...originHeaders, Authorization: `Bearer ${credentials.token}` } });
+      assert.equal(closed.status, 204);
+    }
+    const preflight = await fetch(base, { method: 'OPTIONS', headers: { origin: 'https://another.example', 'Access-Control-Request-Method': 'POST', 'Access-Control-Request-Headers': 'authorization,content-type' } });
+    assert.equal(preflight.status, 204);
+    assert.equal(preflight.headers.get('access-control-allow-origin'), '*');
+    assert.match(preflight.headers.get('access-control-allow-headers'), /authorization/);
     const created = await fetch(base, { method: 'POST', headers }); assert.equal(created.status, 201); assert.equal(created.headers.get('cache-control'), 'no-store');
     const session = await created.json(); const auth = { ...headers, Authorization: `Bearer ${session.token}` };
     assert.equal((await fetch(`${base}/${session.id}/ready`, { method: 'POST', headers })).status, 404);

@@ -12,10 +12,9 @@ OPENAI_REALTIME_MODEL=gpt-realtime-2.1
 OPENAI_REALTIME_VOICE=marin
 INTERVIEW_MAX_SESSIONS=3
 INTERVIEW_DURATION_SECONDS=600
-INTERVIEW_ALLOWED_ORIGINS=http://localhost:8082,http://127.0.0.1:8082
 ```
 
-Ejecuta `npm start`. En `Chat-Laurate/config.json` agrega `"interview": { "enabled": true, "base_url": "http://127.0.0.1:3000" }`. Ejecuta `npm run dev` desde `Chat-Laurate` y abre `http://127.0.0.1:8082`. «Practicar entrevista» abre la sección y «Activar micrófono y empezar» solicita permiso e inicia la conversación.
+Ejecuta `npm start`. En `Chat-Laurate/config.json` agrega `"interview": { "enabled": true, "base_url": "http://127.0.0.1:3000" }`. Ejecuta `npm run dev` desde `Chat-Laurate` y abre `http://127.0.0.1:8082`. Con el tema del simulador publicado, selecciona esa opción del menú o escribe «practicar entrevista laboral». El evento `ciby.interview.start` abre la sección y «Activar micrófono y empezar» solicita permiso e inicia la conversación.
 
 El modelo y la voz son configurables. La transcripción usa `gpt-4o-mini-transcribe` en español y el informe usa `OPENAI_TEXT_MODEL`; todo se factura a OpenAI. El navegador necesita HTTPS o localhost. El iframe permite micrófono/autoplay; si el sitio anfitrión aplica Permissions-Policy debe permitir micrófono para ese origen. Algunos navegadores requieren pulsar «Escuchar a Ciby» para activar el audio.
 
@@ -31,7 +30,7 @@ El estado está aislado por credenciales aleatorias y solo vive en memoria. La a
 
 ## API
 
-Swagger documenta el contrato en `/docs`. Todas las rutas requieren un `Origin` exacto de `INTERVIEW_ALLOWED_ORIGINS`. Crear tiene un límite de seis reservas por IP cada quince minutos y tres sesiones activas por instancia. Una reserva sin conectar vence a los 45 segundos. Los demás endpoints requieren `Authorization: Bearer <token de sesión>`; no persistir el token ni incluirlo en URLs/logs.
+Swagger documenta el contrato en `/docs`. Todas las rutas aceptan cualquier origen y solicitudes sin cabecera `Origin`; CORS permite `*`. Crear tiene un límite de seis reservas por IP cada quince minutos y tres sesiones activas por instancia. Una reserva sin conectar vence a los 45 segundos. Los demás endpoints requieren `Authorization: Bearer <token de sesión>`; no persistir el token ni incluirlo en URLs/logs.
 
 | Método y ruta | Acción |
 |---|---|
@@ -46,12 +45,12 @@ El navegador no ejecuta las herramientas del modelo ni envía las reglas. Cada h
 
 ## Publicación del piloto
 
-1. Despliega el backend con `INTERVIEW_ENABLED=true` y los orígenes HTTPS reales del widget en `INTERVIEW_ALLOWED_ORIGINS`.
+1. Despliega el backend con `INTERVIEW_ENABLED=true`. El simulador acepta peticiones desde cualquier página sin configurar una lista de orígenes.
 2. Mantén **una sola instancia y un solo proceso Node**: tanto el estado como el aforo son locales. Para escalar hace falta estado compartido y asignar cada llamada al proceso que mantiene su sideband.
 3. En Cloud Run configura timeout HTTP de al menos 900 segundos y concurrencia de al menos 10 para SSE, controles y conversiones. SSE mantiene una petición activa. Estos ajustes deben aplicarse en infraestructura; el código no los cambia. Evita despliegues durante las prácticas porque reiniciar interrumpe las llamadas.
 4. Cambia `interview.base_url` al origen HTTPS del backend, ejecuta `npm run build` en `Chat-Laurate` y publica el widget. No publiques el build local con URL localhost. El modo `build:split` también incorpora el simulador y exige publicar ambos archivos.
-5. Crea el tema desde `Chat-Laurate/copilot/simulador-entrevista.yaml`, vincula el botón «Simulador de entrevistas» del menú a ese tema y publica el agente correcto. El evento `ciby.interview.start` abre la sección. El panel de prueba de Copilot Studio no incorpora esta interfaz de voz. El botón del encabezado del widget permite probar antes de publicar el tema.
-6. Valida con micrófono real en escritorio y móvil: bienvenida, perfil oral, cuatro fases, interrupciones, silencio, consejos a mitad, cierre temprano, límite de diez minutos y tres sesiones. Confirma voz/idioma y rechazo de otros orígenes.
+5. Crea el tema desde `Chat-Laurate/copilot/simulador-entrevista.yaml`, vincula el botón «Simulador de entrevistas» del menú a ese tema y publica el agente correcto. El evento `ciby.interview.start` abre la sección. El panel de prueba de Copilot Studio no incorpora esta interfaz de voz.
+6. Valida con micrófono real en escritorio y móvil: bienvenida, perfil oral, cuatro fases, interrupciones, silencio, consejos a mitad, cierre temprano, límite de diez minutos y tres sesiones. Confirma voz/idioma y acceso desde las páginas que alojarán el widget.
 
 Instalar el código no publica automáticamente el backend, widget ni tema.
 

@@ -16,7 +16,6 @@ const config = Object.freeze({
   realtimeVoice: process.env.OPENAI_REALTIME_VOICE || 'marin',
   interviewMaxSessions: intFromEnv('INTERVIEW_MAX_SESSIONS', 3),
   interviewDurationSeconds: intFromEnv('INTERVIEW_DURATION_SECONDS', 600),
-  interviewAllowedOrigins: (process.env.INTERVIEW_ALLOWED_ORIGINS || (process.env.NODE_ENV === 'production' ? '' : 'http://localhost:8082,http://127.0.0.1:8082')).split(',').map(s => s.trim()).filter(Boolean),
   maxFileSizeMb: intFromEnv('MAX_FILE_SIZE_MB', 10),
   rateLimitWindowMs: intFromEnv('RATE_LIMIT_WINDOW_MS', 15 * 60 * 1000),
   rateLimitMax: intFromEnv('RATE_LIMIT_MAX', 30),
@@ -44,10 +43,6 @@ function assertConfig() {
     if (config[key] <= 0) throw new Error(`${key} debe ser mayor que cero`);
   }
   if (config.interviewEnabled) {
-    if (!config.interviewAllowedOrigins.length) throw new Error('Configura INTERVIEW_ALLOWED_ORIGINS para habilitar el simulador');
-    for (const origin of config.interviewAllowedOrigins) {
-      if (new URL(origin).origin !== origin) throw new Error('INTERVIEW_ALLOWED_ORIGINS debe contener orígenes completos sin rutas');
-    }
     if (config.interviewMaxSessions < 1 || config.interviewMaxSessions > 3) throw new Error('INTERVIEW_MAX_SESSIONS debe estar entre 1 y 3 para el piloto');
     if (config.interviewDurationSeconds < 120 || config.interviewDurationSeconds > 600) throw new Error('INTERVIEW_DURATION_SECONDS debe estar entre 120 y 600');
   }

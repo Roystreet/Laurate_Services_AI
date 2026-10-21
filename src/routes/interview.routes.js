@@ -7,12 +7,11 @@ const { ApiError } = require('../utils/errors');
 const { InterviewService } = require('../services/interview.service');
 const { createProvider } = require('../services/interview-provider');
 
-function createInterviewRouter({ service, enabled = config.interviewEnabled, origins = config.interviewAllowedOrigins } = {}) {
+function createInterviewRouter({ service, enabled = config.interviewEnabled } = {}) {
   const router = express.Router();
   router.use((req, res, next) => {
     res.setHeader('Cache-Control', 'no-store');
     if (!enabled) return next(new ApiError(503, 'INTERVIEW_DISABLED', 'El simulador de voz aún no está habilitado.'));
-    if (!origins.includes(req.get('origin'))) return next(new ApiError(403, 'INTERVIEW_ORIGIN', 'Esta página no está habilitada para el simulador.'));
     next();
   });
   const createLimit = rateLimit({ windowMs: 15 * 60 * 1000, limit: 6, standardHeaders: true, legacyHeaders: false,

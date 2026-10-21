@@ -10,9 +10,9 @@ const secured = {
 module.exports = {
   '/api/v1/interviews': { post: {
     tags: ['Entrevistas'], summary: 'Reserva una entrevista oral',
-    description: 'Requiere Origin autorizado e INTERVIEW_ENABLED. Máximo tres llamadas por instancia, seis reservas por IP cada quince minutos. Una reserva sin conectar vence a los 45 segundos. El token es exclusivo de la sesión; nunca contiene la clave de OpenAI.',
+    description: 'Requiere INTERVIEW_ENABLED. Acepta cualquier origen y solicitudes sin Origin. Máximo tres llamadas por instancia, seis reservas por IP cada quince minutos. Una reserva sin conectar vence a los 45 segundos. El token es exclusivo de la sesión; nunca contiene la clave de OpenAI.',
     responses: { 201: response('Credencial temporal; no persistir ni registrar', object({ id: string, token: string, durationSeconds: { type: 'integer', example: 600 } })),
-      403: response('Origin no autorizado'), 429: response('Frecuencia o capacidad agotada'), 503: response('Simulador deshabilitado') },
+      429: response('Frecuencia o capacidad agotada'), 503: response('Simulador deshabilitado') },
   } },
   '/api/v1/interviews/{id}/connect': { post: { ...secured, summary: 'Negocia SDP y conecta sideband',
     requestBody: { required: true, content: json({ ...object({ sdp: { type: 'string', maxLength: 60000 } }), required: ['sdp'] }) },
