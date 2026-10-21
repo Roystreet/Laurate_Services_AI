@@ -161,7 +161,8 @@ test('upstream errors have a structured response and allow retrying the staged U
 test('OpenAPI includes document routes and conversion source', async () => {
   const spec = await (await fetch(base + '/docs.json')).json();
   assert.ok(spec.paths['/api/v1/documents']);
-  assert.equal(spec.components.securitySchemes, undefined);
+  assert.equal(spec.security, undefined);
+  assert.equal(spec.paths['/api/v1/documents'].post.security, undefined);
   assert.equal(spec.paths['/api/v1/convert'].post.security, undefined);
   assert.deepEqual(spec.components.schemas.ConvertResponse.properties.source.enum, ['document', 'link']);
 });

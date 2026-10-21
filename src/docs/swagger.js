@@ -19,7 +19,9 @@ const options = {
       ].join('\n'),
     },
     servers: [{ url: '/', description: 'Servidor actual' }],
+    paths: require('./interview.openapi'),
     components: {
+      securitySchemes: { InterviewSession: { type: 'http', scheme: 'bearer', description: 'Token temporal de la entrevista, nunca OPENAI_API_KEY.' } },
       schemas: {
         CvMatchRequest: {
           type: 'object',
@@ -101,6 +103,7 @@ const options = {
       { name: 'Documentos', description: 'Carga y descarga temporal del widget' },
       { name: 'Conversión', description: 'Conversión de documentos a Markdown' },
       { name: 'Empleabilidad', description: 'Match del CV con una propuesta laboral' },
+      { name: 'Entrevistas', description: 'Simulador oral con OpenAI Realtime' },
       { name: 'Salud', description: 'Estado del servicio' },
     ],
   },

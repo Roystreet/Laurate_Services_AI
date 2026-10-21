@@ -19,6 +19,18 @@ const server = app.listen(config.port, () => {
   console.log('Conversión disponible sin API key del cliente');
 });
 
+let stopping = false;
+async function shutdown() {
+  if (stopping) return;
+  stopping = true;
+  const { interviewService } = require('./routes/interview.routes');
+  await interviewService.shutdown();
+  server.closeAllConnections();
+  server.close(() => process.exit(0));
+}
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);
+
 process.on('unhandledRejection', (reason) => {
   console.error('[unhandledRejection]', reason);
 });

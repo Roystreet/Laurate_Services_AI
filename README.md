@@ -2,6 +2,10 @@
 
 Servicio REST en Node.js que recibe un documento (**PDF**, **Word .docx** o **imagen/fotografía**) y devuelve todo su texto convertido a formato **Markdown**. El análisis se realiza con IA usando modelos **GPT de OpenAI**.
 
+## Simulador de entrevistas por voz
+
+Nuevo recorrido con OpenAI Realtime, WebRTC en el widget y control de sesión por sideband en el backend. Recoge el perfil oral, guía ocho preguntas principales y hasta dos repreguntas y entrega consejos orales y escritos. Piloto de hasta diez minutos y tres sesiones simultáneas por instancia. No requiere ElevenLabs. Consulta [configuración, API y publicación](docs/interview.md). Se habilita con `INTERVIEW_ENABLED=true`; la clave de OpenAI permanece en el servidor.
+
 ## Match de CV con propuesta laboral
 
 `POST /api/v1/cv-match` compara el CV ya leído con una sola propuesta laboral recibida como **enlace público**, **archivo adjunto** o **texto completo escrito/pegado**. El tema de Copilot Studio está en `../Chat-Laurate/copilot/match-cv-propuesta.yaml` y utiliza el mismo botón y servicio de carga del widget. Primero se lee el CV con `/api/v1/convert`, se confirma la lectura y después se solicita la propuesta. El análisis utiliza `OPENAI_API_KEY` y `OPENAI_TEXT_MODEL` del servidor; no necesita Flowise ni una clave del cliente.
@@ -44,7 +48,7 @@ Respuesta 200:
 
 Los errores mantienen `{ "error": { "code", "message", "status" } }`: 400 para entradas/destinos inválidos, 404 para documentos temporales vencidos, 413 para límites, 422 para propuestas inaccesibles o ilegibles, 429 por frecuencia, 502 para fallos o respuestas inválidas de IA y 504 por tiempo agotado. El tema conserva el CV durante los reintentos de propuesta. Escribir `reintentar` vuelve a usar el enlace o texto anterior; enviar otra propuesta reemplaza esa fuente y limpia la otra. Al terminar se elimina el estado local del tema.
 
-Para instalar: ejecutar `npm install`, mantener la configuración actual de OpenAI y publicar el backend en su origen HTTPS. Desplegar el backend que acepta `proposalText` antes de actualizar y publicar el tema y el widget. El tema de match usa los endpoints HTTPS directamente; no requiere variables globales de URL. Swagger documenta el contrato en `/docs` y `/docs.json`. `ELEVENLABS_API_KEY` es una variable opcional de voz y no interviene en este análisis.
+Para instalar: ejecutar `npm install`, mantener la configuración actual de OpenAI y publicar el backend en su origen HTTPS. Desplegar el backend que acepta `proposalText` antes de actualizar y publicar el tema y el widget. El tema de match usa los endpoints HTTPS directamente; no requiere variables globales de URL. Swagger documenta el contrato en `/docs` y `/docs.json`. El simulador de voz usa OpenAI Realtime y no interviene en este análisis.
 
 `npm test` incluye el recorrido carga → conversión → match, propuestas escritas de más de 2.000 caracteres sin descarga/conversión, extracción HTML/documental, los tres veredictos, cambios entre fuentes, aislamiento entre solicitudes, errores de IA, límites y vencimientos, DNS/redirecciones inseguras, compresión y cancelación. Las pruebas automatizadas simulan OpenAI y la red externa. La comprobación del agente publicado debe realizarse en Copilot Studio y en el widget con los endpoints del despliegue.
 
@@ -84,7 +88,7 @@ Pruebas: `npm test` ejecuta el recorrido carga → descarga → conversión, dif
 
 ## Requisitos
 
-- Node.js >= 18.17
+- Node.js >= 20 (incluye fetch y FormData nativos para Realtime)
 - Una API key de OpenAI ([platform.openai.com](https://platform.openai.com/api-keys))
 
 ## Instalación

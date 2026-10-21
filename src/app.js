@@ -12,6 +12,7 @@ const healthRoutes = require('./routes/health.routes');
 const convertRoutes = require('./routes/convert.routes');
 const documentRoutes = require('./routes/document.routes');
 const cvMatchRoutes = require('./routes/cv-match.routes');
+const { createInterviewRouter, interviewService } = require('./routes/interview.routes');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler.middleware');
 
 const app = express();
@@ -26,6 +27,10 @@ app.use(healthRoutes);
 
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, { customSiteTitle: 'Laurate Convertidor Markdown — API' }));
 app.get('/docs.json', (req, res) => res.json(swaggerSpec));
+
+// La conexión SSE mantiene una petición activa durante la llamada. Sus controles
+// tienen un limitador propio, independiente de conversiones/documentos.
+app.use('/api/v1/interviews', createInterviewRouter({ service: interviewService }));
 
 const apiLimiter = rateLimit({
   windowMs: config.rateLimitWindowMs,
