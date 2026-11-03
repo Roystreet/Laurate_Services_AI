@@ -25,10 +25,12 @@ function createInterviewRouter({ service, enabled = config.interviewEnabled } = 
   router.post('/:id/connect', wrap(async (req, res) => res.json(await service.connect(req.interview, req.body?.sdp))));
   router.get('/:id/events', (req, res, next) => {
     try {
-      if (req.interview.listeners.size) throw new ApiError(409, 'INTERVIEW_ALREADY_OPEN', 'Esta sesión ya está abierta.');
       res.set({ 'Content-Type': 'text/event-stream', 'Connection': 'keep-alive', 'X-Accel-Buffering': 'no' });
+      req.setTimeout(0); res.setTimeout(0);
       res.flushHeaders();
-      const unsubscribe = service.subscribe(req.interview, state => res.write(`data: ${JSON.stringify(state)}\n\n`));
+      // Una reconexión con el mismo token sustituye a la anterior (renovación del
+      // widget o proxy que no propagó el cierre), en lugar de rechazarla con 409.
+      const unsubscribe = service.subscribe(req.interview, state => res.write(`data: ${JSON.stringify(state)}\n\n`), () => res.end());
       const heartbeat = setInterval(() => res.write(': keepalive\n\n'), 15000);
       heartbeat.unref();
       res.on('close', () => { clearInterval(heartbeat); unsubscribe(); });

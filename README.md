@@ -4,7 +4,7 @@ Servicio REST en Node.js que recibe un documento (**PDF**, **Word .docx** o **im
 
 ## Simulador de entrevistas por voz
 
-Nuevo recorrido con OpenAI Realtime, WebRTC en el widget y control de sesión por sideband en el backend. Recoge el perfil oral, guía ocho preguntas principales y hasta dos repreguntas y entrega consejos orales y escritos. Piloto de hasta diez minutos y tres sesiones simultáneas por instancia. No requiere ElevenLabs. Consulta [configuración, API y publicación](docs/interview.md). Se habilita con `INTERVIEW_ENABLED=true`; la clave de OpenAI permanece en el servidor.
+Nuevo recorrido con OpenAI Realtime, WebRTC en el widget y control de sesión por sideband en el backend. Recoge el perfil oral, guía seis preguntas principales y hasta dos repreguntas y entrega consejos orales y escritos. Sesiones de 15 minutos y tres sesiones simultáneas por instancia. No requiere ElevenLabs. Consulta [configuración, API y publicación](docs/interview.md). Se habilita con `INTERVIEW_ENABLED=true`; la clave de OpenAI permanece en el servidor.
 
 ## Match de CV con propuesta laboral
 

@@ -15,7 +15,7 @@ const config = Object.freeze({
   realtimeModel: process.env.OPENAI_REALTIME_MODEL || 'gpt-realtime-2.1',
   realtimeVoice: process.env.OPENAI_REALTIME_VOICE || 'marin',
   interviewMaxSessions: intFromEnv('INTERVIEW_MAX_SESSIONS', 3),
-  interviewDurationSeconds: intFromEnv('INTERVIEW_DURATION_SECONDS', 600),
+  interviewDurationSeconds: intFromEnv('INTERVIEW_DURATION_SECONDS', 900),
   maxFileSizeMb: intFromEnv('MAX_FILE_SIZE_MB', 10),
   rateLimitWindowMs: intFromEnv('RATE_LIMIT_WINDOW_MS', 15 * 60 * 1000),
   rateLimitMax: intFromEnv('RATE_LIMIT_MAX', 30),
@@ -44,7 +44,7 @@ function assertConfig() {
   }
   if (config.interviewEnabled) {
     if (config.interviewMaxSessions < 1 || config.interviewMaxSessions > 3) throw new Error('INTERVIEW_MAX_SESSIONS debe estar entre 1 y 3 para el piloto');
-    if (config.interviewDurationSeconds < 120 || config.interviewDurationSeconds > 600) throw new Error('INTERVIEW_DURATION_SECONDS debe estar entre 120 y 600');
+    if (config.interviewDurationSeconds < 600 || config.interviewDurationSeconds > 1200) throw new Error('INTERVIEW_DURATION_SECONDS debe estar entre 600 y 1200 (recomendado 900: 15 minutos, con los últimos 90 segundos para consejos)');
   }
 }
 
